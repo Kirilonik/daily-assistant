@@ -18,21 +18,19 @@ async def generate_chat_response(prompt, temp_msg, context):
 
 async def query_ollama(prompt):
     response = requests.post('http://localhost:11434/api/generate', json={
-        # 'model': 'qwen2:0.5b',
-        'model': 'gemma2:2b',
-        # 'model': 'llama3.1:latest',
+        'model': 'wizard-vicuna-uncensored:13b',
         'prompt': prompt,
-        'stream': True,
+        'stream': False,
+        'temperature': 0,
+        'max_tokens': 182,
     })
     response.raise_for_status()
-    # Обрабатываем ответ построчно
+    
     result = ""
-    for line in response.iter_lines():
-        if line:
-            try:
-                json_line = json.loads(line)
-                if 'response' in json_line:
-                    result += json_line['response']
-            except json.JSONDecodeError:
-                print(f"Не удалось разобрать строку JSON: {line}")
+    json_response = response.json()
+    if 'response' in json_response:
+        result = json_response['response']
+    else:
+        print(f"Неожиданный формат ответа: {json_response}")
+    print(result)
     return result

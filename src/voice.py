@@ -4,19 +4,36 @@ import tempfile
 import speech_recognition as sr
 from gtts import gTTS
 from pydub import AudioSegment
-
+from TTS.api import TTS
 from ollama import generate_chat_response, query_ollama
-
+import torch
 
 # Генерируем аудио ответ
 async def generate_voice_response(prompt, temp, context, update):
     chat_out = await query_ollama(prompt)
     chat_out = chat_out.replace("*", "").replace("**", "")
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_audio:
-        tts = gTTS(text=chat_out, lang='ru')
-        tts.save(temp_audio.name)
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
+        print(f"device to generate voice response: {device}")
+        tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
+        tts.to(device)
+        
+        user_id = update.message.from_user.id
+        user_sample = f'samples\{user_id}_voice_sample.wav'
+        speaker_wav = user_sample if os.path.exists(user_sample) else "samples\sample_voice.wav"
+        
+        tts.tts_to_file(text=chat_out,
+                        file_path=temp_audio.name,
+                        speaker_wav=speaker_wav,
+                        language="ru")
         await update.message.reply_voice(temp_audio.name)
+    try:
         os.unlink(temp_audio.name)
+    except Exception as e:
+        print(e)
     return chat_out
 
 
